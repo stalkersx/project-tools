@@ -1,0 +1,800 @@
+#!/bin/bash
+
+###### FOUND FILE/DIR ########
+# input data in array
+declare -a arrcari
+
+# permission
+izinr(){
+  if ! [ -r $1 ];then
+    echo "[!] path <[$(pwd)/$1]> tidak ada izin read(r)"; exit
+  fi
+}
+
+# scan many file
+carib(){
+  idx=0; iarr=0; jchar="$(expr length $1)"; tchar=${1:0}
+  while [[ $idx -le $jchar ]];do
+    char1=${tchar:idx:1}
+    if [[ $char1 != "[" ]] && [[ $char1 != "," ]] && [[ $char1 != "]" ]];then
+      var+=$char1
+    fi
+    # tampung banyak file di array
+    if [[ $char1 == "," ]] || [[ $char1 == "]" ]];then
+      arrcari[$iarr]=$var
+      unset var; ((iarr++))
+    fi
+    ((idx++))
+  done
+}
+
+# scan char
+scanchar(){
+  # scan all dir and file
+  for scan in $(ls);do
+	# scan found a file from char
+    if [ -d $scan ] && [ "$(ls -d $scan | grep -i $1)" ];then
+      izinr $scan
+      echo "[d] $(pwd)/$scan"
+    elif [ -f $scan ] && [ "$(ls -f $scan | grep -i $1)" ];then
+      izinr $scan
+      echo "[f] $(pwd)/$scan"
+    fi
+    unset n i
+    # scan dir to dir
+    if [ -d $scan ] && [ -x $scan ];then
+      checklink=$(ls -l $scan | cut -d 'r' -f 1)
+      if [[ $checklink == "l" ]];then continue
+      else
+        cd $scan; scanchar $1; cd ..
+      fi
+      unset checklink
+    fi
+  done
+}
+
+# get file or directory
+found_file(){
+	if [ $1 ] && [ -d "$2" ] && [ -z "$3" ];then 
+		# get root access
+		if [ -r $2 ] && [ -w $2 ];then
+			cd $2
+		else
+			echo "! command need root access"; exit
+		fi
+		# check parameter
+		if [[ ${1:0:1} == "[" ]] && [[ ${1: -1} == "]" ]];then
+			# get text more file
+			carib $1
+			# scan more file
+			for cari in ${arrcari[@]};do
+				scanchar $cari
+			done
+			unset arrcari
+		else
+			if [[ ${1:0:1} != "[" ]] && [[ ${1:0:1} != "-" ]] && [[ ${1: -1} != "]" ]];then
+				scanchar $1
+			else
+				echo "[!] usage : parameter symbol [file,file,dir] for found many file"
+			fi
+		fi
+	else
+		echo "[!] usage : fcmd [file|dir] /path/"
+	fi
+}
+
+###### TOTAL FILE/DIR #######
+# array file
+declare -a svnf svnd
+jf=0
+
+# total file or directory in path
+jfile(){
+  for scan in $(ls);do
+    # scan file or folder
+    if [ -f $scan ];then
+      svnf[$jf]="$scan"
+    elif [ -d $scan ];then
+      svnd[$jf]="$scan"
+    fi
+    ((jf++))
+
+    # no path to path
+    if [[ $1 -eq 1 ]];then continue; fi
+
+    # path to path
+    if [ -d $scan ] && [ -x $scan ];then cd $scan; jfile $1; cd ..; fi
+  done
+}
+
+# check path total file
+total_file(){
+	if [[ $1 == "all" ]] && [ -d $2 ];then
+		if [ -z $2 ];then jfile
+		else
+			cd $2; jfile
+		fi
+	elif [[ $1 == "one" ]] && [ -d $2 ];then
+		if [ -z $2 ];then jfile 1
+		else
+			cd $2; jfile 1
+		fi
+	else
+		echo "[!] usage : fcmd [-t] [one | all] /path/dir"; exit
+	fi
+
+	# show total
+	echo "[#] $(pwd)"
+	echo "[f] ${#svnf[@]} file"
+	echo "[d] ${#svnd[@]} folder"
+	unset svnf svnd
+}
+
+##### FILE MANAGER ######
+#open text space
+OLDIFS=$IFS
+IFS=$'\n'
+
+#open window
+winopen(){
+  for i in {0..70};do
+    if [[ $i -eq 0 ]];then
+      printf '╭'
+    elif [[ $i -eq 70 ]];then
+      printf '╮'
+    else
+      printf '—'
+    fi
+  done
+  echo
+}
+
+# close window
+winclose(){
+  for i in {0..70};do
+    if [[ $i -eq 0 ]];then
+      printf '╰'
+    elif [[ $i -eq 70 ]];then
+      printf '╯'
+    else
+      printf '—'
+    fi
+  done
+  echo
+}
+
+#show list
+gettext(){
+  a=$(expr length "$1")
+  b=0
+  while [[ $b -le $a ]];do
+    c[$b]=${1:$b:1}; ((b++))
+  done
+
+  s=" "
+  d=0; gline=$2; gspace=$((gline+a))
+  for n in {0..70};do
+    if [[ $n -eq 0 ]] || [[ $n -eq 70 ]];then
+      printf "|"
+    elif [[ $n -gt $gline ]];then
+      printf "${c[d]}"; ((d++))
+    fi
+    if [[ $n -lt $gline ]];then
+      printf "$s"
+    elif [[ $n -gt $gspace ]];then
+      printf "$s"
+    fi
+  done
+  echo; unset c
+}
+
+# tabel window
+win(){
+  # get list file and directory
+  if [ -d $1 ];then
+    arr=( $(ls $1) )
+  else
+    if [[ $1 -eq 1 ]];then
+      #get permission read
+      arr=("+r" "+w" "+x" "+rw" "+rx" "+wx" "+rwx" "-r" "-w" "-x" "-rw" "-rx" "-wx" "-rwx")
+      tlp=1
+    else
+      arr=( $(ls) )
+    fi
+  fi
+
+  ##run window
+  winopen
+  for j in ${!arr[@]};do
+    if [ -f ${arr[j]} ];then
+      if [ $1 ];then
+        fl=$(ls -l $1/${arr[j]})
+      else
+        fl=$(ls -l ${arr[j]})
+      fi
+      gettext "$j. ${fl:0:10} ${arr[j]}" 2
+    elif [ -d ${arr[j]} ];then
+      if [ $1 ];then
+        fd=$(ls -ld $1/${arr[j]})
+      else
+        fd=$(ls -ld ${arr[j]})
+      fi
+      gettext "$j. ${fd:0:10} ${arr[j]}" 2
+    fi
+    # run tabel list permission
+    if [[ $tlp -eq 1 ]];then
+      gettext "$j. ${arr[j]}" 2
+    fi
+  done
+  winclose
+  unset tlp
+}
+
+#array kosong
+declare -a tandai
+
+# window list file and directory
+tabel(){
+  clear
+  if [ "$1" ];then
+    echo -e "\n [ $1 ]\n"
+  fi
+  win
+}
+
+#fungsi pindahkan file/folder
+move(){
+  echo; read -p "--> " me
+  b=( $(ls) )
+  for i in ${!b[@]};do
+    if [[ $me == $i ]];then
+      file="${b[i]}"; angka=$i
+    fi
+  done
+}
+
+#fungsi tandai beberapa file/folder
+tandaifile(){
+  a=0
+  tabel "tandai $1 file nomor"
+  while [ true ];do
+    echo -e "\n [ ${tandai[@]} ]\n\n[${#tandai[@]}]tandai [*]semua [u]ulang [s]selesai [q]batal"
+    move me file angka
+    if [[ $me == $angka ]] && ! [ -w $file ];then
+      tabel "tidak ada izin tulis(w) di file ($file)"
+    elif [[ $me == $angka ]] && ! [ -r $file ];then
+      tabel "tidak ada izin baca(r) di file ($file)"
+    elif [[ $me == $angka ]];then
+      for a1 in ${tandai[@]};do
+        if [[ $a1 == $file ]];then cfl="no"; fi
+      done
+      if [[ $cfl == "no" ]];then
+        tabel "file ($file) sudah ditandai"
+      else
+        tandai[$angka]=$file
+        tabel "file ($file) ditandai"
+      fi
+      unset cfl
+    elif [[ $me == '*' ]];then
+      for ts in $(ls);do
+        if [ -w $ts ];then
+	  for ts1 in ${tandai[@]};do
+	    if [[ $ts1 == $ts ]];then continue 2; fi
+	  done
+          tandai[$a]=$ts; ((a++))
+        fi
+      done
+      tabel "semua file ditandai"
+    elif [[ $me == 's' ]];then
+      if [[ ${tandai[@]} ]];then
+        dn='s'; break
+      else
+        tabel "tidak ada yang ditandai"
+      fi
+    elif [[ $me == 'u' ]];then
+      unset tandai
+      tabel "mengulang tandai kembali"
+    elif [[ $me == 'q' ]];then clear; dn='q'
+      break
+    else
+      tabel "pilih angka yang mau ditandai untuk di$1"
+    fi
+  done
+}
+
+#fungsi dapatkan target path directory
+targetloc(){
+  tpath="]\n\n    |__ ["
+  tabel "$1 ke $tpath $(pwd)"
+  while [ true ];do
+    echo -e "\n [ ${tandai[@]} ]\n\n[${#tandai[@]}]berkas [s]tempel [k]kembali [q]batal"
+    move me file angka
+    if [[ $me == $angka ]] && ! [ -w $file ] && [ -d $file ];then
+      tabel "tidak ada izin tulis(w) di file ($file) $tpath $(pwd)"
+    elif [[ $me == $angka ]] && ! [ -r $file ] && [ -d $file ];then
+      tabel "tidak ada izin baca(r) di file ($file) $tpath $(pwd)"
+    elif [[ $me == $angka ]] && ! [ -x $file ] && [ -d $file ];then
+      tabel "tidak ada izin exec(x) di file ($file) $tpath $(pwd)"
+    elif [[ $me == $angka ]];then
+      if [ -d $file ];then
+        for i1 in ${tandai[@]};do
+          if [[ $i1 == $file ]];then cfl1="no"; fi
+	done
+	if [[ $cfl1 == "no" ]];then
+          tabel "target $1 adalah file yang dipilih $tpath $(pwd)"
+        else
+          cd $file
+          tabel "membuka ($file) $tpath $(pwd)"
+	fi
+	unset cfl1
+      else
+        tabel "target $1 hanya ke folder $tpath $(pwd)"
+      fi
+    elif [[ $me == 'k' ]];then
+      cd .. && tabel "kembali $tpath $(pwd)"
+    elif [[ $me == 's' ]];then
+      dnl='s'; locb=`pwd`; break
+    elif [[ $me == 'q' ]];then dnl='q'; break
+    else
+      tabel "pilih angka untuk target lokasi $1 $tpath $(pwd)"
+    fi
+  done
+}
+
+#fungsi yes/no target path
+yesnocph(){
+  #question y/n tandai
+  tabel "apakah anda yakin ingin $1 file (y/n)"
+  if [[ $1 == "copy" ]] || [[ $1 == "pindahkan" ]];then cloc="yes"
+    if [[ $1 == "copy" ]];then
+      echo -e "\n $1 : ${tandai[@]}\n ke   : $3\n\n[${#tandai[@]}] berkas"
+    elif [[ $1 == "pindahkan" ]];then
+      echo -e "\n $1 : ${tandai[@]}\n ke        : $3\n\n[${#tandai[@]}] berkas"
+    fi
+  else
+    echo -e "\n $1 : ${tandai[@]}\n\n[${#tandai[@]}] berkas"
+  fi
+  echo; read -p "--> " a
+  if [[ $a == 'y' ]] || [[ $a == 'Y' ]];then
+    for i in ${tandai[@]};do
+      #copy
+      if [[ $6 -eq 1 ]];then
+        cp -rf $2/$i $3
+      #pindah
+      elif [[ $6 -eq 2 ]];then
+        mv $2/$i $3
+      #hapus
+      elif [[ $6 -eq 3 ]];then
+        rm -rf $i
+      fi
+    done
+    tabel "$4"
+  elif [[ $a == 'n' ]] || [[ $a == 'N' ]];then
+    if [ "$cloc" ];then cd $2; fi
+    tabel "$5"
+  else
+    if [ "$cloc" ];then cd $2; fi
+    tabel "pilih input (y/n) $1 file gagal"
+  fi
+  unset cloc
+}
+
+#method copy, move and delete file or folder
+cmhfile(){
+  #module
+  tombolf=$1
+  run=$2
+
+  #path before(locl)
+  locl=`pwd`
+
+  #get array (tandai) file
+  tandaifile $tombolf dn
+  # get path new location(locb)
+  if [[ $dn == 's' ]] && [ -z $3 ];then
+    targetloc $tombolf locb dnl tpath
+    #check file new location(locb) same or not in array tandai
+    datalocb=(`ls $locb`)
+    for i in ${datalocb[@]};do
+      for j in ${tandai[@]};do
+        if [[ $i == $j ]];then
+          checkdone="done"; notifcd="file $j sudah ada di $tpath $locb"
+        fi
+      done
+    done
+  #cancel get array (tandai) file
+  elif [[ $dn == 'q' ]];then
+    tabel "membatalkan tandai $tombolf file"
+  #run only for delete file or folder
+  elif [ $3 ];then
+    if [ $dnl ];then
+       unset dnl
+    fi
+    yesnocph $tombolf "null" "null" "$tombolf semua file berhasil" "$tombolf dibatalkan" $run
+  fi
+
+  #check run button(s)
+  if [[ $dn == 's' ]] && [[ $dnl == 's' ]];then
+    #check path new and before same or not
+    if [[ $locl == $locb ]];then
+      cd $locl && tabel "pilih target lokasi lain proses gagal"
+    #clear check done tandai and locb
+    elif [[ $checkdone == "done" ]];then
+      cd $locl && tabel "$notifcd"
+    #run method question y/n
+    else
+      yesnocph $tombolf $locl $locb "$tombolf semua file berhasil" "$tombolf dibatalkan" $run
+    fi
+  #cancel get new location(targetloc)
+  elif [[ $dn == "s" ]] && [[ $dnl == 'q' ]];then cd $locl
+    tabel "membatalkan cari target $tombolf file"
+  fi
+
+  #clear variabel and array
+  unset tandai; unset datalocb; unset checkdone; unset notifcd
+  unset tombolf; unset run
+}
+
+#method yes/no
+yesno(){
+  tabel "$1"
+  echo; read -p "--> " tnyq
+  if [[ $tnyq == "y" ]] || [[ $tnyq == "Y" ]];then
+    if [[ $6 -eq 1 ]];then touch $5
+    elif [[ $6 -eq 2 ]];then mkdir $5
+    elif [[ $6 -eq 3 ]];then mv $5 $7
+    fi
+    tabel "$2"
+  elif [[ $tnyq == "n" ]] || [[ $tnyq == "N" ]];then
+    tabel "$3"
+  else
+    tabel "$4"
+  fi
+}
+
+#fungsi cetak file/folder baru
+makefile(){
+  #module
+  typedata=$1
+  run=$2
+
+  #make new name file
+  tabel "nama $typedata baru nya"
+  echo; read -p "--> " nwfile
+
+  #while for get name file already is have or not yet
+  for i in `ls`;do
+    if [[ $nwfile == $i ]];then
+      nlfile=$i; break
+    fi
+  done
+
+  #check new name file not empty
+  if [ $nwfile ];then
+    if [[ $nwfile == $nlfile ]];then
+      tabel "nama typedata ($nwfile) sudah ada"
+    else
+      #make file
+      if [[ $run -eq 1 ]];then
+        yesno "yakin untuk membuat $typedata ($nwfile) (y/n)" "pembuatan $typedata ($nwfile) berhasil" "pembuatan $typedata ($nwfile) dibatalkan" "pilih input (y/n) pembuatan $typedata dibatalkan" $nwfile 1
+      #make directory
+      elif [[ $run -eq 2 ]];then
+        yesno "yakin untuk membuat $typedata ($nwfile) (y/n)" "pembuatan $typedata ($nwfile) berhasil" "pembuatan $typedata ($nwfile) dibatalkan" "pilih input (y/n) pembuatan $typedata dibatalkan" $nwfile 2
+      fi
+    fi
+  else
+    tabel "tidak ada nama baru untuk membuat perubahan"
+  fi
+}
+
+#fungsi buat file/folder baru
+newfile(){
+  tabel "buat file atau folder"
+  echo -e "\n [f]file [d]folder [q]batal\n"; read -p "--> " tm
+  case $tm in
+    'f') makefile "file" 1;;
+    'd') makefile "folder" 2;;
+    'q') tabel "pembuatan file/folder dibatalkan";;
+      *) tabel "pilih huruf yang tersedia untuk buat file atau folder";;
+  esac
+}
+
+#fungsi ganti nama file/folder
+renamefile(){
+  tabel "file yang mau diganti nama"
+  move me file angka
+  if [[ $me == $angka ]] && [ -f $file ] || [ -d $file ] && [ "$file" ];then
+    if ! [ -w $file ];then
+      tabel "tidak ada izin tulis(w) file ($file)"
+    else
+      tabel "nama file barunya"
+      echo; read -p "--> " newname
+      if [ "$newname" ];then
+        yesno "yakin untuk ganti nama ($file) ke ($newname) (y/n)" "ganti nama ($file) ke ($newname) berhasil" "ganti nama ($file) ke ($newname) dibatalkan" "pilih input (y/n) ganti nama ($file) ke ($newname) gagal" $file 3 $newname
+      else
+        tabel "tidak ada nama baru untuk membuat perubahan"
+      fi
+    fi
+  else
+    tabel "pilih angka file untuk rename"
+  fi
+}
+
+givepermissions(){
+  opsi=$1; run=$2; clear
+  echo -e "\n [ pilih perizinan file ($2) ]\n"
+  win 1
+  echo -e "\n[ Detail ]\n     |__ [r=izin baca] [w=izin tulis] [x=izin eksekusi bash]\n\n"
+  read -p "--> " gopsi
+  case $gopsi in
+    '0') chmod $opsi+r $run
+         tabel "file ($run) berhasil diberi izin baca(+r)";;
+    '1') chmod $opsi+w $run
+         tabel "file ($run) berhasil diberi izin tulis(+w)";;
+    '2') chmod $opsi+x $run
+         tabel "file ($run) berhasil diberi izin eksekusi(+x)";;
+    '3') chmod $opsi+rw $run
+         tabel "file ($run) berhasil diberi izin baca dan tulis(+rw)";;
+    '4') chmod $opsi+rx $run
+         tabel "file ($run) berhasil diberi izin.baca dan eksekusi(+rx)";;
+    '5') chmod $opsi+wx $run
+         tabel "file ($run) berhasil diberi izin tulis dan eksekusi(+wx)";;
+    '6') chmod $opsi+rwx $run
+         tabel "file ($run) berhasil diberi izin baca, tulis dan eksekusi(+rwx)";;
+    '7') chmod $opsi-r $run
+         tabel "file ($run) berhasil dicopot izin baca(-r)";;
+    '8') chmod $opsi-w $run
+         tabel "file ($run) berhasil dicopot izin tulis(-w)";;
+    '9') chmod $opsi-x $run
+         tabel "file ($run) berhasil dicopot izin eksekusi(-x)";;
+    '10') chmod $opsi-rw $run
+         tabel "file ($run) berhasil dicopot izin baca dan tulis(-rw)";;
+    '11') chmod $opsi-rx $run
+         tabel "file ($run) berhasil dicopot izin baca dan eksekusi(-rx)";;
+    '12') chmod $opsi-wx $run
+         tabel "file ($run) berhasil dicopot izin tulis dan eksekusi(-wx)";;
+    '13') chmod $opsi-rwx $run
+         tabel "file ($run) berhasil dicopot izin baca, tulis dan eksekusi(-rwx)";;
+      *) tabel "pilih angka opsi yang tersedia";;
+  esac
+}
+
+#get opsi permissions
+getopsi(){
+  tabel "pilih jenis perizinan untuk file ($1)"
+  echo -e "\n [a]all [u]user [g]group [o]other"
+  echo; read -p "--> " opsi
+  case $opsi in
+    'a') givepermissions "a" $1;;
+    'u') givepermissions "u" $1;;
+    'g') givepermissions "g" $1;;
+    'o') givepermissions "o" $1;;
+      *) tabel "pilih huruf file yang tersedia";;
+  esac
+}
+
+#method get permissions file
+gpermissionsf(){
+  tabel "file yang akan diberi izin"
+  echo -e "\n [ PERMISSIONS ]\n     |__ [drwx_rwx_rwx=all] [drwx=user] [rwx=grub] [rwx=other]"
+  move me file angka
+  if [[ $me == $angka ]];then
+    if [[ $(whoami) == "$(ls -ld $file | awk '{print $3}')" ]];then
+      getopsi $file
+    else
+      tabel "proses gagal butuh perizinan root"
+    fi
+  else
+    tabel "pilih angka untuk beri perizinan file"
+  fi
+}
+
+#fungsi edit file
+editfile(){
+  tabel "file mana yang akan diedit"
+  move me file angka
+  if [[ $me == $angka ]] && [ -f $file ];then
+    if [ -f /bin/nano ] || [ -f $PREFIX/bin/nano ];then
+      if ! [ -w $file ];then
+        tabel "tidak ada izin tulis(w) di file ($file)"
+      elif ! [ -r $file ];then
+        tabel "tidak ada izin baca(r) di file ($file)"
+      else
+        nano -l $file; tabel "edit ($file) selesai"
+      fi
+    else
+      tabel "tools (nano) tidak terinstall"
+    fi
+  elif [[ $me == $angka ]] && [ -d $file ];then
+    tabel "folder tidak dapat diedit"
+  else
+    tabel "pilih angka file untuk edit"
+  fi
+}
+
+#fungsi beri hak pemilikan file
+give_owner(){
+  # owner in system
+  if [ -f /etc/passwd ];then
+    # array user group
+    arru=( $(cat /etc/passwd | cut -d ':' -f 1) )
+
+    # tabel list user group
+    echo -e "\n [ pilih pemilik file ]\n"
+    winopen
+    for uo2 in ${!arru[@]};do
+      gettext "$uo2. ${arru[uo2]}" 2
+    done
+    winclose
+
+    # choose user group
+    echo; read -p "--> " opsi_uo
+    for uo1 in ${!arru[@]};do
+      if [[ $opsi_uo == $uo1 ]];then
+        owner_new=${arru[uo1]}
+      fi
+    done
+
+    # give onwer
+    if [[ $1 == "user" ]] && [ "$owner_new" ];then
+      if [[ $owner_new == "$(ls -ld $2 | awk '{print $3}')" ]];then
+        tabel "$1 file ($2) saat ini ialah ($owner_new) proses gagal"
+      else
+        chown $owner_new $2
+	tabel "$1 file ($2) berhasil diganti ke ($owner_new)"
+      fi
+    elif [[ $1 == "group" ]] && [ "$owner_new" ];then
+      if [[ $owner_new == "$(ls -ld $2 | awk '{print $4}')" ]];then
+        tabel "$1 file ($2) saat ini ialah ($owner_new) proses gagal"
+      else
+        chown :$owner_new $2
+	tabel "$1 file ($2) berhasil diganti ke ($owner_new)"
+      fi
+    elif [[ $1 == "all" ]] && [ "$owner_new" ];then
+      chown $owner_new:$owner_new $2
+      tabel "user dan group file ($2) berhasil diganti ke ($owner_new)"
+    else
+      tabel "pilih pemilik file yang tersedia"
+    fi
+  else
+    tabel "proses gagal (/etc/passwd) not found"
+  fi
+  unset owner_new
+}
+
+#fungsi pemilik file
+ownerfile(){
+  tabel "file yang akan diubah pemilikan"
+  move me file angka
+  if [[ $me == $angka ]];then
+    if [[ $(whoami) == "root" ]];then
+      tabel "pilih jenis pemilik file ($file)"
+      echo -e "\n [a]all [u]user [g]group"
+      echo; read -p "--> " opsi1
+      if [[ $opsi1 == "a" ]];then
+        give_owner "all" $file
+      elif [[ $opsi1 == "u" ]];then
+        give_owner "user" $file
+      elif [[ $opsi1 == "g" ]];then
+        give_owner "group" $file
+      else
+         tabel "pilih opsi yang tersedia proses gagal"
+      fi
+    else
+      tabel "proses gagal butuh perizinan root"
+    fi
+  else
+    tabel "pilih angka yang tersedia"
+  fi
+}
+
+#fungsi tabel detail file
+tabel_df(){
+  clear
+  winopen
+  gettext "name        : $1" 2
+  gettext "user        : $(ls -ld $1 | awk '{print $3}')" 2
+  gettext "group       : $(ls -ld $1 | awk '{print $4}')" 2
+  gettext "size        : $(du -sh $1 | awk '{print $1}')" 2
+  gettext "last modify : $(ls -ld $1 | awk '{print $6, $7, $8}')" 2
+  gettext "type file   :$(file $1 | cut -d ':' -f 2 | cut -d ',' -f 1)" 2
+  winclose
+}
+
+#fungsi tampilkan detail file
+detailfile(){
+  tabel "file mana yang akan ditampilkan detail"
+  move me file angka
+  if [[ $me == $angka ]] && ! [ -r $file ];then
+    tabel "tidak ada izin baca(r) di file ($file)"
+  elif [[ $me == $angka ]] && [ -r $file ];then
+    tabel_df $file
+  else
+    tabel "pilih angka untuk tampilkan detail file"
+  fi
+}
+
+# input text file manager
+file_managerx(){
+	skipd="$1"
+	warna="\e[47;30m"
+	#echo -e $warna
+	tabel "File Manager"
+	while [ true ];do
+		echo -e "\n [b]buat [e]edit  [h]hapus  [m]pindah [k]kembali [i]perizinan\n [r]ubah [c]salin [p]lokasi [d]detail [q]keluar  [w]pemilik"
+		move me file angka
+		if [ -z $me ];then
+			tabel "input kosong"
+		elif [[ $me == $angka ]] && ! [ -w $file ];then
+			tabel "tidak ada izin tulis(w) di file ($file)"
+		elif [[ $me == $angka ]] && ! [ -r $file ];then
+			tabel "tidak ada izin baca(r) di file ($file)"
+		elif [[ $me == $angka ]] && [ -d $file ] && [ -x $file ];then
+			cd $file; tabel "membuka ($file)"
+		elif [[ $me == $angka ]] && [ -f $file ];then
+			less $file; tabel "membaca ($file)"
+		elif [[ $me == 'b' ]];then newfile
+		elif [[ $me == 'c' ]];then cmhfile "copy" 1
+		elif [[ $me == 'm' ]];then cmhfile "pindahkan" 2
+		elif [[ $me == 'h' ]];then cmhfile "hapus" 3 "null"
+		elif [[ $me == 'r' ]];then renamefile
+		elif [[ $me == 'w' ]];then ownerfile
+		elif [[ $me == 'd' ]];then detailfile
+		elif [[ $me == 'i' ]];then gpermissionsf
+		elif [[ $me == 'p' ]];then tabel "menampilkan lokasi path anda berada"; echo -e "\n [ PATH ]\n      |_ $(pwd)"
+		elif [[ $me == 'k' ]];then phl=$(pwd); cd ..; ph=$(pwd)
+			if ! [ -r $ph ];then cd $phl
+				tabel "path <$ph> tidak ada izin baca(r)"
+				unset phl; unset ph; continue
+			fi
+			if [[ $phl == $skipd ]];then cd $phl; unset phl; unset ph
+				tabel "(q) untuk keluar pengaturan"
+				unset phl; unset ph; continue
+			fi
+			unset phl; unset ph; tabel "kembali"
+		elif [[ $me == 'e' ]];then editfile
+		elif [[ $me == "q" ]];then exit
+		else
+			tabel "pilih angka atau huruf yang tersedia"
+		fi
+	done
+}
+
+#end get have is space
+IFS=$OLDIFS
+
+############ OPTIONS #################
+if [[ $1 == "--help" ]] && [ -z "$2" ];then
+	echo -e "\nfcmd [target_directory] [skip_directory]\nfcmd [options] [flags]\n\nOptions\n-f\tfound a file or directory\n-t\tshow a file total of directory"
+elif [[ $1 == "-t" ]] && [ -z "$4" ];then
+	total_file $2 $3
+elif [[ $1 == "-f" ]] && [ -z "$4" ];then
+	found_file $2 $3
+else
+	# parameter
+	if [ -z "$1" ];then
+		if [ -w $(pwd) ];then
+			file_managerx
+		else
+			echo "! butuh perizinan root ($(pwd))"
+		fi
+	elif [ "$1" ] && [ -d $1 ];then
+		# target directory
+		if [ -w $1 ];then cd $1
+			# skip directory
+			if [ -z $2 ];then
+				file_managerx
+			elif [ -d "$2" ] && [ -z "$3" ];then
+				file_managerx $2
+			else
+				echo "! tidak diketahui ($2)"
+			fi
+		else
+			echo "! butuh perizinan root ($1)"
+		fi
+	else
+		echo "! tidak diketahui ($1)"
+	fi
+fi
+
+#by : @stalkersx
