@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# variabel
+display=2
+screen=1280x720
+interface=wlan0
+get_iface=$(ifconfig wlan0 | grep inet | head -n 1 | cut -d 't' -f 2 | cut -d ' ' -f 2)
+
+# check tty mode
+if [[ $(tty) == /dev/tty1 ]];then
+	echo "! you not running on tty1, please go to menu login then do Ctrl+Alt+F1 for continue" && exit
+fi
+
+# check vnc installed
+if [ ! $(which vncserver) ];then
+	echo "! vnc not installed" && exit
+fi
+
+# check vnc is running
+if [ -f "/tmp/.X${display}-lock" ] || [ -S "/tmp/.X11-unix/X${display}" ];then vncrun=1; fi
+
+# check interface
+if [ -z $get_iface ];then
+	echo "! wifi connection not found, please check your wifi up or down" && exit
+fi
+
+# start vnc via wifi
+if [[ $vncrun -eq 1 ]];then
+	echo "! server vnc is running, do <[ vncserver -kill :2 ]> for stop server" && exit
+else
+	if [ -f /tmp/.X${display}-lock ];then
+		rm /tmp/.X${display}-lock
+	fi
+	if [ -f /tmp/.X11-unix/X${display} ];then
+		rm /tmp/.X11-unix/X${display}
+	fi
+	vncserver :${display} -interface $get_iface -port "590${display}" -geometry $screen
+	echo "+ IP/HOST : $get_iface"
+	echo "+ PORT    : 590${display}"
+	echo "+ DISPLAY : ${display}"
+	echo "+ SCREEN  : $screen"
+	echo "+ USER    : $(whoami)"
+fi

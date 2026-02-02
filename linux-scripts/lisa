@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ ! -f "$(which tgpt-linux-amd64)" ];then
+	echo "! terminal gpt not installed" && exit
+fi
+
+if ! [ -z "$1" ];then
+	tgpt-linux-amd64 "$1, pakai bahasa indonesia"
+else
+	while [ true ]; do
+		clear
+		read -p "[?] questions : " ask
+		tgpt-linux-amd64 "$ask, pakai bahasa indonesia"
+		read -p "[q] Please [enter] for continue ... " tnya
+		if [[ $tnya == "q" ]];then
+			break
+		fi
+	done
+fi

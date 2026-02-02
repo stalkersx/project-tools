@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ -z $(cat /etc/timezone | grep Jakarta) ];then
+	timedatctl set-timezone Asia/Jakarta
+fi
+timedatectl set-ntp on
+timedatectl status
