@@ -1,0 +1,423 @@
+// ==UserScript==
+// @name         autoinput
+// @version      2026-10-06
+// @description  input click automatic
+// @author       crazysx
+// @match        https://sehatindonesiaku.kemkes.go.id/ckg-pelayanan*
+// @match        https://form.kemkes.go.id/v2/skrining-form/*
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_getTab
+// @grant        GM_saveTab
+// @grant        GM_xmlhttpRequest
+// @connect      *
+// ==/UserScript==
+
+// class or id
+let startmulai = 0;
+let tidaksemua = '[id^="sq_"][id$="i_1"]';
+let yasemua = '[id^="sq_"][id$="i_0"]';
+let selesai = 1;
+let inik, sistol,diastol,statusdisis,guladarah,statusgd,lp;
+let linkurl = 'https://docs.google.com/spreadsheets/d/1y8yUhVWcqA5YPD-yTJ45z6nDW7Ugadph/export?format=csv'
+let nik, refeshal;
+
+
+// cari text di halaman
+function caritext(type,text){
+    return [...document.querySelectorAll(type)].find(b => b.textContent.includes(text));
+}
+
+// input number
+function inputnumber(idx,inumber,itext){
+    if ([...document.querySelectorAll('a,title,value,label,span,div')].find(b => b.textContent.includes(itext))){
+        let isi = document.querySelectorAll('input[type="number"]')[idx];
+        let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(isi, inumber);
+        isi.dispatchEvent(new Event('input', { bubbles: true }));
+        isi.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log(itext,inumber);
+    }
+}
+
+// klik kirim
+function klikkirim(type,idx,text){
+    return [...document.querySelectorAll(type)].filter(b => b.title.includes(text))[idx].click();
+}
+
+// klik radio semuanya
+function klikradio(idall){
+    var getid = document.querySelectorAll(idall);
+    getid.forEach((el, index) => { el.click(); });
+}
+
+// klik 1 radio saja
+function klik1radio(idone,idx){
+    var getid = document.querySelectorAll(idone);
+    getid[idx].click();
+}
+
+// temukan tombol
+function klik1button(type1,idx1,text1){
+    return [...document.querySelectorAll(type1)].filter(b => b.textContent.includes(text1))[idx1].click();
+}
+
+// check tabel radio tambahan
+function checkquestion(attr,idx,text){
+    //input if radio defferent function
+    if([...document.querySelectorAll('a,title,value,label,span,div')].find(b => b.textContent.includes(text))){
+        klik1radio(attr,idx); selesai = 0; console.log(text);
+    }
+}
+
+// check umur dan jenis kelamin
+async function checkgenderage(age,gender){
+
+    let statusmenikah;
+
+    // click 1 question untuk semua
+    checkquestion('input[type="radio"]',2,'Apakah Anda pernah atau sedang mengalami batuk yang tidak sembuh-sembuh?');
+    checkquestion('input[type="radio"]',9,'Hasil pemeriksaan pupil');
+    checkquestion('input[type="radio"]',1,'Gigi karies');
+    checkquestion('input[type="radio"]',0,'Berapa jumlah gigi karies?');
+
+
+    // umur dewasa
+    if (age >= 26){
+        checkquestion('input[type="radio"]',0,'Apakah pernah melakukan hubungan intim/seksual?');
+        await new Promise(r=>setTimeout(r,3000));
+        checkquestion('input[type="radio"]',1,'Status Perkawinan');
+    } else if (age <= 26 ){
+        checkquestion('input[type="radio"]',1,'Apakah pernah melakukan hubungan intim/seksual?');
+        checkquestion('input[type="radio"]',0,'Status Perkawinan');
+        await new Promise(r=>setTimeout(r,3000));
+        checkquestion('input[type="radio"]',5,'apakah ada rencana menikah dalam kurun waktu 1 tahun ke depan?');
+        statusmenikah = 'belum';
+    }
+
+    // usia remaja
+    if (age < 18){
+        await new Promise(r=>setTimeout(r,3000));
+        checkquestion('input[type="radio"]',3,'Pada usia berapa Anda mengalami menstruasi pertama?');
+        checkquestion('input[type="radio"]',7,'Apakah pernah mengalami gatal-gatal di kemaluan?');
+    }
+
+
+    // umur lansia
+    if (age >= 70){
+        checkquestion('input[type="radio"]',2,'Pemeriksaan PPOK (Skrining PUMA)');
+        checkquestion('input[type="radio"]',6,'Usia - skor APCS');
+    } else if (age >= 60 ){
+        checkquestion('input[type="radio"]',2,'Pemeriksaan PPOK (Skrining PUMA)');
+        checkquestion('input[type="radio"]',5,'Usia - skor APCS');
+    } else if (age >= 50){
+        checkquestion('input[type="radio"]',1,'Pemeriksaan PPOK (Skrining PUMA)')
+        checkquestion('input[type="radio"]',5,'Usia - skor APCS');
+    } else if (age >= 40 ){
+        checkquestion('input[type="radio"]',0,'Pemeriksaan PPOK (Skrining PUMA)')
+        checkquestion('input[type="radio"]',4,'Usia - skor APCS');
+    }
+
+    // gender
+    if (gender == 'Perempuan'){
+        checkquestion('input[type="radio"]',8,'Jenis Kelamin - skor APCS');
+        if (statusmenikah == 'belum'){
+            checkquestion('input[type="radio"]',7,'Apakah Anda sedang hamil?');
+            checkquestion('input[type="radio"]',8,'Apakah Anda penyandang disabilitas?');
+        } else {
+            checkquestion('input[type="radio"]',5,'Apakah Anda sedang hamil?');
+            checkquestion('input[type="radio"]',6,'Apakah Anda penyandang disabilitas?');
+        }
+    } else if (gender == 'Laki-laki'){
+        checkquestion('input[type="radio"]',7,'Jenis Kelamin - skor APCS');
+        if (statusmenikah == 'belum'){
+            checkquestion('input[type="radio"]',6,'Apakah Anda penyandang disabilitas?');
+        } else {
+            checkquestion('input[type="radio"]',4,'Apakah Anda penyandang disabilitas?');
+        }
+    }
+    //tunggu jika pertanyaan input atau click radio baru
+    await new Promise(r=>setTimeout(r,4000));
+
+    // input tekanan darah
+    if (!statusdisis || statusdisis == 'NORMAL'){
+        checkquestion('input[type="radio"]',1,'Apakah Anda pernah dinyatakan tekanan darah tinggi?');
+    } else {
+        checkquestion('input[type="radio"]',0,'Apakah Anda pernah dinyatakan tekanan darah tinggi?');
+        await new Promise(r=>setTimeout(r,1000));
+        inputnumber(0,12,'Sudah Berapa Bulan Anda Didiagnosis Hipertensi Oleh Dokter?');
+    }
+
+    // input gula darah
+    if (!statusgd || statusgd == 'NORMAL'){
+        checkquestion('input[type="radio"]',1,'Anda pernah dinyatakan diabetes atau kencing manis oleh Dokter?');
+    } else {
+        checkquestion('input[type="radio"]',0,'Anda pernah dinyatakan diabetes atau kencing manis oleh Dokter?');
+        await new Promise(r=>setTimeout(r,1000));
+        inputnumber(0,12,'Anda Didiagnosis Diabetes Melitus');
+    }
+
+    // tambahan tabel baru muncul
+    checkquestion('input[type="radio"]',3,'Apakah Anda pernah merokok sebelumnya?');
+    checkquestion('input[type="radio"]',3,'Apakah Anda pernah memiliki riwayat merokok dalam 15 tahun terakhir?');
+
+    // delete statusmenikah
+    statusmenikah = null;
+
+}
+
+// check halaman
+function cekhal(attr,idx){
+    // input judul halaman
+    let gethalamanno = ['Kesehatan Reproduksi Putra - Anak Sekolah','Pemeriksaan PPOK (Skrining PUMA)','Faktor Risiko Malaria','Faktor Risiko Hepatitis SMP dan SMA','Perilaku Merokok - Anak Sekolah','Kelayakan Tes Kebugaran','Gejala Cemas Remaja','Gejala Depresi Remaja','Kelayakan Tes Kebugaran','Hati', 'Tingkat Aktivitas Fisik (sedang dan berat)','Penapisan Risiko Kanker Paru','Perilaku Merokok','Faktor Risiko Kanker Usus'];
+    let gethalamanya = ['Skrining Telinga dan Mata','Kesehatan Jiwa','Kesehatan Reproduksi Putri - Anak Sekolah'];
+    let gethalamaninputdata = ['Pemeriksaan Gula Darah Remaja','Gizi Anak Sekolah','Tekanan Darah Anak dan Remaja','Kuesioner Tingkat Aktivitas Fisik - Tingkat Aktivitas Fisik','Gizi (BB - TB - Lingkar Perut) Laki-laki','Tekanan Darah Dewasa Lansia','Pemeriksaan Gula Darah Dewasa Lansia','Gizi (BB - TB - Lingkar Perut) Perempuan'];
+    let halaman = document.querySelectorAll(attr)[idx].textContent;
+    for (let i = 0; i < gethalamanno.length; i++){
+        if (halaman == gethalamanno[i]){
+            klikradio(tidaksemua); selesai = 0; break;
+        }
+    }
+    for (let j = 0; j < gethalamanya.length; j++){
+        if (halaman.includes(gethalamanya[j])){
+            klikradio(yasemua); selesai = 0; break;
+        }
+    }
+    for (let k = 0; k < gethalamaninputdata.length; k++){
+        if (halaman.includes(gethalamaninputdata[k])){
+            inputdata(nik); selesai = 0; break;
+        }
+    }
+}
+
+// check input yang bawah
+function checkinput(text){
+    let checkbelum;
+    let cek = document.querySelectorAll('[class="w-[19px] h-[19px]"]');
+    let getquestion = ['Pemeriksaan Gigi','Gizi','Pemeriksaan Gula Darah','Tekanan Darah','Pemeriksaan PPOK (Skrining PUMA)','Skrining Karies dan Gigi Hilang','Skrining Telinga dan Mata'];
+    let listquestion = document.querySelectorAll('[class="col-span-2 pl-12 flex items-center"]');
+    try{
+        for (let i = 0; i <= cek.length; i++){
+            if(cek[i].getAttribute('src') == '/images/icons/icon-success-gray.svg') {
+                console.log(i, cek[i].getAttribute('src'), text);
+                if (document.querySelectorAll('[class="pl-4.5"]')[i].textContent.includes('Riwayat Imunisasi Tetanus')){
+                    continue;
+                } else {
+                    klik1button('button[type="button"]',i,text); checkbelum = 1;
+                    break;
+                }
+            }
+        }
+    } catch(e) {
+        if([...document.querySelectorAll('[class="tracking-wide"]')].find(r=>r.textContent.includes('Selesaikan Layanan'))){
+            stop:
+            for (let j = 0; j < getquestion.length; j++){
+                for (let k = 0; k < listquestion.length; k++){
+                    //console.log(listquestion[k].textContent,'||',getquestion[j]);
+                    if (listquestion[k].textContent.includes(getquestion[j])){
+                        if (listquestion[k].nextElementSibling.textContent.includes('Belum Pemeriksaan')){
+                            let index = k + cek.length;
+                            console.log(k, cek.length, index, listquestion[k].nextElementSibling.textContent); console.log(listquestion[k].textContent);
+                            klik1button('button[type="button"]',index,text); checkbelum = 1;
+                            break stop;
+                        }
+                    }
+                }
+            }
+        } else {
+            if (caritext('[class="tracking-wide"]','Mulai Pemeriksaan')){
+                checkbelum = 1;
+                caritext('[class="tracking-wide"]','Mulai Pemeriksaan')?.click();
+                setTimeout(() => { caritext('[class="tracking-wide"]','Simpan')?.click(); location.reload(); }, 2000);
+            }
+        }
+    }
+    // check selesai semua atau belum //tanda ? ialah jangan tampilkan error jika text tidak ada
+    if (checkbelum == 1){
+        console.log('selesai');
+    } else {
+        if (!caritext('[class="h-11 flex items-center justify-center text-center rounded-lg text-center bg-disabled px-2 text-sm font-bold text-[#969BA2] cursor-pointer h-11"]','Selesaikan Layanan')){
+            caritext('[class="tracking-wide"]','Selesaikan Layanan')?.click();
+            setTimeout(() => { caritext('[class="tracking-wide"]','Konfirmasi')?.click(); }, 2000);
+            alert('Inputan Selesai....');
+            setTimeout(() => { document.querySelector('[class="w-[24px] h-[24px] cursor-pointer"]')?.click(); }, 6000);
+        } else {
+            console.log('input selesai semua');
+        }
+    }
+}
+
+// cari nilai di data
+function carinilai(cari){
+    return new Promise((resolve) => {
+        let kolom,baris,hasil;
+        GM_xmlhttpRequest({method:"Get",url:linkurl,onload:function(res) {
+            let data = res.responseText.trim().split('\n');
+            for (let i = 1; i < data.length; i++){
+                baris = data[i].split(',');
+                kolom = baris[2].trim();
+                if (kolom == cari){
+                    hasil = data[i].split(','); break;
+                }
+            }
+            if (hasil){
+                console.log(hasil);
+                if (hasil[9] == 'NORMAL' || hasil[9] == 'HIPERTENSI' || hasil[9] == 'PRE-HIPERTENSI'){
+                    inik = hasil[2]; sistol = hasil[7]; diastol = hasil[8]; statusdisis = hasil[9]; guladarah = hasil[10]; statusgd = hasil[11]; lp = hasil[16];
+                } else if (hasil[8] == 'NORMAL' || hasil[8] == 'HIPERTENSI' || hasil[8] == 'PRE-HIPERTENSI'){
+                    inik = hasil[2]; sistol = hasil[6]; diastol = hasil[7]; statusdisis = hasil[8]; guladarah = hasil[9]; statusgd = hasil[10]; lp = hasil[15];
+                }
+                console.log(inik,sistol,diastol,statusdisis,guladarah,statusgd,lp);
+            } else {
+                console.log('nik tidak ditemukan pada data');
+            }
+            resolve();
+        }});
+    });
+}
+
+// mencari angka acak
+function angkaacak(awal,akhir){
+    let acak = [];
+    for (let i = awal; i < akhir; i++){
+        acak.push(i);
+    }
+    return acak[Math.floor(Math.random() * acak.length)];
+}
+
+// isikan nilai/data ke input
+function inputdata(gnik){
+    let inputacakgd = angkaacak(95,140);
+    if (gnik){
+        carinilai(gnik).then((r) => {
+            // lingkar perut
+            if (!lp){
+                inputnumber(0,angkaacak(50,70),'Lingkar Perut');
+                inputnumber(1,angkaacak(140,168),'Lingkar Perut');
+                inputnumber(2,angkaacak(70,80),'Lingkar Perut');
+            } else if (lp >= 70){
+                inputnumber(0,angkaacak(55,70),'Lingkar Perut');
+                inputnumber(1,angkaacak(142,168),'Lingkar Perut');
+                inputnumber(2,lp,'Lingkar Perut');
+            } else if (lp >= 80){
+                inputnumber(0,angkaacak(70,80),'Lingkar Perut');
+                inputnumber(1,angkaacak(155,170),'Lingkar Perut');
+                inputnumber(2,lp,'Lingkar Perut');
+            }
+
+            // input nilai tekanan darah
+            if (!statusdisis){
+                inputnumber(0,angkaacak(100,120),'Tekanan Darah');
+                inputnumber(1,angkaacak(70,84),'Tekanan Darah');
+            } else {
+                inputnumber(0,sistol,'Tekanan Darah');
+                inputnumber(1,diastol,'Tekanan Darah');
+            }
+
+            // input nilai gula darah
+            if (!statusgd){
+                inputnumber(0,angkaacak(95,140),'Gula Darah');
+            } else {
+                inputnumber(0,guladarah,'Gula Darah');
+            }
+        });
+        // input tingkat aktivitas fisik
+        inputnumber(0,angkaacak(40,50),'Gizi Anak Sekolah');
+        inputnumber(1,angkaacak(148,157),'Gizi Anak Sekolah');
+        inputnumber(0,1,'Dalam 7 hari terakhir, berapa hari Anda aktif  secara  fisik  dalam  waktu  total selama  minimal  60  menit  sehari?');
+        inputnumber(1,1,'Biasanya dalam satu minggu, berapa hari Anda aktif secara fisik dalam waktu total selama minimal 60 menit sehari?');
+        selesai = 0;
+    }
+}
+
+// mengingat tombol mulai yang di klik
+function rememberklikmulai(){
+    let listmulai = [...document.querySelectorAll('button[type="button"]')].filter(b => b.textContent.includes('Mulai'));
+    let tombol = GM_getValue('klik_ke','nonumber');
+    let svnumber;
+    // check nomor tersimpan kosong
+    if (tombol == 'nonumber'){
+        tombol = prompt('Mulai dari Nomor Berapa ?', 'Input Number ....');
+    }
+    if (isNaN(tombol)){
+        alert('masukin nomor input tombol mulai woyyy -_-');
+    } else {
+        // klik tombolnya
+        if (listmulai[tombol]){
+            svnumber = parseInt(tombol) + 1;
+            if (svnumber >= listmulai.length){
+                GM_setValue('klik_ke', 'nonumber');
+            } else {
+                GM_setValue('klik_ke', svnumber);
+            }
+            klik1button('button[type="button"]',tombol,'Mulai');
+            setTimeout(function(){
+                if (document.title.includes('Detail Pemeriksaan')){
+                    location.reload();
+                }
+            }, 3000);
+        } else {
+            alert('di list ga ada nomor itu woyy -_-');
+            GM_setValue('klik_ke', 'nonumber');
+        }
+    }
+}
+
+// tunggu halaman selesai dimuat
+async function tunggu(){
+    if (document.readyState == 'complete'){
+        console.log('running...');
+        await new Promise(r=>setTimeout(r,3000));
+        // save import pada tab saat ini
+        GM_getTab(async tab => {
+            if (!tab.uid){
+                tab.uid = Date.now() + "_" + Math.random();
+                GM_saveTab(tab);
+            }
+            console.log('idTab_' + tab.uid);
+            // check halaman saat ini
+            if (location.hostname.includes('sehatindonesiaku.kemkes.go.id')){
+                if (document.title.includes('Pelayanan')){
+                    rememberklikmulai();
+                } else if (document.title.includes('Detail Pemeriksaan')){
+                    // dapatkan data di halaman
+                    let umurs = [...document.querySelectorAll('[class="text-[#969BA2]"]')].find(b => b.textContent.includes('Umur Saat Pemeriksaan'))?.nextElementSibling.textContent.match(/\d+/)[0];
+                    let jenis_kelamins = [...document.querySelectorAll('[class="text-[#969BA2]"]')].find(b => b.textContent.includes('Jenis Kelamin'))?.nextElementSibling.textContent;
+                    let niks = [...document.querySelectorAll('[class="text-[#969BA2]"]')].find(b => b.textContent.includes('NIK'))?.nextElementSibling.textContent;
+                    // import ke halaman selanjutnya
+                    GM_setValue('umur_' + tab.uid, umurs);
+                    GM_setValue('jk_' + tab.uid, jenis_kelamins);
+                    GM_setValue('nik_' + tab.uid, niks);
+                    console.log(umurs,'tahun',jenis_kelamins,niks);
+                    await new Promise(r=>setTimeout(r,3000));
+                    checkinput('Input Data');
+                }
+            } else if (location.hostname.includes('form.kemkes.go.id')){
+                // dapatkan import
+                let umur = GM_getValue('umur_' + tab.uid, 'no data');
+                let jenis_kelamin = GM_getValue('jk_' + tab.uid, 'no data');
+                nik = GM_getValue('nik_' + tab.uid, 'no data');
+                console.log(umur,jenis_kelamin,nik);
+                cekhal('h4',0,nik);
+                await checkgenderage(umur, jenis_kelamin);
+                await new Promise(r=>setTimeout(r,6000));
+                if (selesai == 0){
+                    klikkirim('input[type="button"]',0,'Kirim');
+                    console.log('selesai ...');
+                }
+            } else {
+                console.log('domain tidak diketahui');
+            }
+        });
+    } else {
+        return await new Promise(r=>setTimeout(tunggu,5000));
+    }
+}
+
+(function() {
+    'use strict';
+
+    tunggu();
+
+})();

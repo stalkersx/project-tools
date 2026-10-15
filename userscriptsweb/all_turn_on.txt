@@ -1,0 +1,4 @@
+javascript:(function(){
+const daftarSaklar = document.querySelectorAll('input[type="checkbox"]:not(:checked)');
+daftarSaklar.forEach((saklar) => { saklar.click(); });
+})();

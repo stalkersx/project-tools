@@ -1,0 +1,1 @@
+javascript:(function(){ var getid = document.querySelectorAll('[id^="sq_"][id$="i_1"]'); getid.forEach((el, index) => { el.click(); }); alert(getid.length + ' radio tidak diclick'); })();

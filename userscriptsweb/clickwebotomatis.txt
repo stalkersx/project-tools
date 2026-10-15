@@ -1,0 +1,54 @@
+# click 1 saklar dan 1 konfirmasi
+javascript:(function(){
+document.querySelector('input[type="checkbox"]').click();
+document.querySelector('.w-fill.btn-fill-primary.h-11').click();
+})();
+
+
+# click semua saklar dan semua konfirmasi
+javascript:(function(){
+const daftarSaklar = document.querySelectorAll('input[type="checkbox"]:checked');
+daftarSaklar.forEach((saklar, index) => {
+setTimeout(() => {
+/* Klik Saklar */
+saklar.click();      
+/* Klik Tombol Konfirmasi setelah saklar diklik (jeda 500ms di dalam) */
+setTimeout(() => {
+const tombolYa = document.querySelector('.w-fill.btn-fill-primary.h-11');
+if(tombolYa) tombolYa.click();
+/* notif */
+if (index === daftarSaklar.length - 1) { alert('Saklar ' + daftarSaklar.length + ' selesai dimatikan'); }
+}, 500);
+}, index * 3000); /* Jeda 3 detik */
+});
+})();
+
+
+# menyalakan kembali semuanya
+javascript:(function(){
+const daftarSaklar = document.querySelectorAll('input[type="checkbox"]:not(:checked)');
+daftarSaklar.forEach((saklar) => { saklar.click(); });
+})();
+
+# click semua radio
+document.querySelector('#sq_100 > div:nth-child(2) > fieldset:nth-child(1) > div:nth-child(2) > label:nth-child(1) > span:nth-child(2)').click();
+document.querySelector('#sq_107 > div:nth-child(2) > fieldset:nth-child(1) > div:nth-child(2) > label:nth-child(1) > span:nth-child(2)').click();
+
+# click 1 tombol gambar dari class html
+document.querySelector('[class="w-[24px] h-[24px] cursor-pointer"]').click();
+
+# click 1 tombol dari index dengan text yang sama
+[...document.querySelectorAll('button, input[type="button"')].filter(b => b.title.includes('Mulai'))[3].click();
+
+# tampilkan semua text dari tag class html
+console.log([...document.querySelectorAll('[class="text-[#969BA2]"]')].map(e => e.textContent.trim()).join('\n'));
+
+# ambil 1 kalimat text dari tag class html
+console.log(document.querySelectorAll('.font-bold')[1].textContent);
+
+# ambil 1 angka dihalaman dari element html
+console.log(document.querySelectorAll('.font-bold')[7].textContent.match(/\d+/)[0]);
+
+# auto input text
+let isi = document.querySelector('.class');
+isi.value = "your text here ..";

@@ -1,0 +1,3 @@
+javascript:(function(){
+document.querySelectorAll('[id^="sq_"][id$="i_0"]').forEach((el, index) => { el.click(); }); document.querySelectorAll('[title="Tidak"]').forEach((tekan, index) => { tekan.click(); });
+})();

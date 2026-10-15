@@ -1,0 +1,16 @@
+javascript:(function(){
+const daftarSaklar = document.querySelectorAll('input[type="checkbox"]:checked');
+daftarSaklar.forEach((saklar, index) => {
+setTimeout(() => {
+/* Klik Saklar */
+saklar.click();      
+/* Klik Tombol Konfirmasi setelah saklar diklik (jeda 500ms di dalam) */
+setTimeout(() => {
+const tombolYa = document.querySelector('.w-fill.btn-fill-primary.h-11');
+if(tombolYa) tombolYa.click();
+/* notif */
+if (index === daftarSaklar.length - 1) { alert('Saklar ' + daftarSaklar.length + ' selesai dimatikan'); }
+}, 500);
+}, index * 3000); /* Jeda 3 detik */
+});
+})();
